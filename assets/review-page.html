@@ -1,0 +1,1443 @@
+<title>__PROJECT__Cut Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a three-pane edit suite. Cut library | viewer and transport | notes for the version on screen.
+   Deliberately single-theme dark: a neutral grey surround keeps colour judgement honest on the footage.
+   Under 900px it stacks: cut picker, viewer, version bar, composer, notes. */
+:root{
+  --ground:#151619;
+  --panel:#1c1d21;
+  --raised:#26282d;
+  --line:#33353b;
+  --text:#ecebe7;
+  --muted:#9d9c97;
+  --faint:#6d6d6a;
+  --accent:__ACCENT__;
+  --accent-ink:__ACCENT_INK__;
+  --ok:#62c08f;
+  --ok-ink:#0f2419;
+  --warn:#e2a54a;
+  --danger:#ea6a5f;
+  --claude:#d08a6a;
+  --ui:"Inter Tight", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r:8px;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--ground);color:var(--text);font-family:var(--ui);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+.app{display:grid;grid-template-columns:244px minmax(0,1fr) 400px;height:100%}
+
+/* ---------- shared controls ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:var(--r);border:1px solid var(--line);background:var(--raised);padding:7px 12px;font-weight:500;font-size:13px}
+.btn:hover{border-color:var(--faint)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.primary:hover{filter:brightness(.94)}
+.btn.good{background:var(--ok);color:var(--ok-ink);border-color:var(--ok);font-weight:600}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--text);background:var(--raised)}
+.btn.danger{color:var(--danger)}
+.btn.small{padding:3px 8px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.field{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0;width:100%}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;letter-spacing:.02em;border-radius:4px;padding:1px 6px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.accent{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.chip.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.chip.bad{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,transparent)}
+.chip.claude{color:var(--claude);border-color:color-mix(in srgb,var(--claude) 45%,transparent)}
+.chip.solid-ok{background:var(--ok);color:var(--ok-ink);border-color:var(--ok)}
+
+/* ---------- library ---------- */
+.library{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding-block:18px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:14px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:baseline;gap:8px}
+.brand b{font-weight:700;letter-spacing:.14em;font-size:13px}
+.brand span{color:var(--muted);font-size:13px}
+#cutList{display:flex;flex-direction:column;gap:18px}
+.group{display:flex;flex-direction:column;gap:3px}
+.group-head{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.group-head h3{margin:0;flex:1;min-width:0;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);text-wrap:balance}
+.cut{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:var(--r);padding:7px 10px}
+.cut:hover{background:var(--raised)}
+.cut[aria-current="true"]{background:var(--raised);border-color:var(--line)}
+.cut[aria-current="true"] .cut-name::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:7px;vertical-align:2px}
+.cut.old{padding-left:22px}
+.cut.old .cut-name{font-weight:400;color:var(--muted)}
+.cut-name{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cut-meta{color:var(--faint);font-size:12px}
+.cut-side{display:flex;align-items:center;gap:5px}
+.count{min-width:20px;padding:1px 6px;border-radius:10px;background:var(--line);color:var(--text);font-size:11px;text-align:center}
+.count.has{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.fold{align-self:flex-start;margin-left:14px}
+.lib-actions{margin-top:auto;display:flex;flex-direction:column;gap:10px}
+.upload{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--ground)}
+.upload label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.upload .row{display:flex;gap:8px}
+.upload .row>*{flex:1;min-width:0}
+.status{font-size:12px;color:var(--muted);min-height:1em}
+.status.err{color:var(--danger)}
+
+/* ---------- stage ---------- */
+.stage{display:flex;flex-direction:column;min-width:0;min-height:0}
+.stage-head{display:flex;align-items:center;gap:10px;padding-block:12px;padding-inline:20px;border-bottom:1px solid var(--line);min-height:56px}
+.stage-title{min-width:0;flex:1}
+.stage-title .g{color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+.stage-title h1{margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cut-picker{display:none}
+.seg{display:none;background:var(--ground);border:1px solid var(--line);border-radius:var(--r);padding:2px}
+.seg button{border:0;background:transparent;border-radius:6px;padding:4px 10px;font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--raised);color:var(--text)}
+.player-wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:16px;padding:18px;position:relative}
+.frame{position:relative;background:#000;border-radius:4px;overflow:hidden;box-shadow:0 0 0 1px var(--line);width:270px;height:480px;max-width:100%;flex:none}
+.frame video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.frame .tag{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.66);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;pointer-events:none}
+#ink{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.frame.pen #ink{pointer-events:auto;cursor:crosshair;touch-action:none}
+.frame.pen{box-shadow:0 0 0 2px var(--accent)}
+.pen-flag{position:absolute;top:10px;left:10px;background:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;pointer-events:none}
+.stage-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--muted);background:var(--ground);z-index:2}
+.stage-empty p{max-width:34ch;margin:0}
+.stage-empty strong{display:block;color:var(--text);font-size:15px;margin-bottom:6px}
+
+.transport{padding-block:10px 14px;padding-inline:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.scrub{position:relative;height:34px;cursor:pointer;touch-action:none;user-select:none}
+.track{position:absolute;left:0;right:0;top:6px;height:6px;border-radius:3px;background:var(--raised)}
+.track .buf{position:absolute;inset:0 auto 0 0;background:var(--line);border-radius:3px}
+.track .prog{position:absolute;inset:0 auto 0 0;background:var(--text);border-radius:3px}
+.track .sel{position:absolute;top:-3px;bottom:-3px;background:color-mix(in srgb,var(--accent) 28%,transparent);border-left:2px solid var(--accent);border-right:2px solid var(--accent)}
+.playhead{position:absolute;top:0;height:18px;width:2px;margin-left:-1px;background:var(--accent);pointer-events:none}
+.playhead::after{content:"";position:absolute;top:-2px;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.lane{position:absolute;left:0;right:0;top:20px;height:12px}
+.mk{position:absolute;top:0;height:10px;min-width:10px;margin-left:-5px;border-radius:5px;background:var(--accent);border:0;padding:0;box-shadow:0 0 0 2px var(--ground)}
+.mk.range{margin-left:0;border-radius:3px}
+.mk.addressed{background:var(--claude)}
+.mk.done{background:var(--faint)}
+.mk.fix{background:transparent;box-shadow:inset 0 0 0 2px var(--claude)}
+.mk.sel{box-shadow:0 0 0 2px var(--text)}
+.hover-tip{position:absolute;bottom:38px;transform:translateX(-50%);background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12px;white-space:nowrap;pointer-events:none;max-width:260px;overflow:hidden;text-overflow:ellipsis;z-index:3}
+.controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.icon-btn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:var(--r);border:1px solid transparent;background:transparent;color:var(--text)}
+.icon-btn:hover{background:var(--raised)}
+.icon-btn.play{background:var(--text);color:var(--ground)}
+.icon-btn.play:hover{background:var(--accent);color:var(--accent-ink)}
+.icon-btn svg{width:18px;height:18px;fill:currentColor}
+.clock{font-size:13px;padding-inline:8px;color:var(--muted)}
+.clock b{color:var(--text);font-weight:500}
+.speed{background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:5px 6px;font-size:12px}
+.b-row{display:flex;align-items:center;gap:10px;padding-top:8px;border-top:1px dashed var(--line)}
+.b-row .field{width:auto;max-width:170px;padding:4px 6px;font-size:12px}
+.b-scrub{position:relative;flex:1;height:18px;cursor:pointer;touch-action:none;min-width:60px}
+.b-scrub .track{top:6px}
+.b-scrub .prog{background:var(--muted)}
+
+/* ---------- notes column ---------- */
+.notes{background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;padding-right:env(safe-area-inset-right,0px)}
+.verbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.verbar .what{flex:1;min-width:120px;font-size:12.5px;color:var(--muted)}
+.verbar .what b{color:var(--text);font-weight:600}
+.round{margin:10px 16px 0;padding:10px 12px;border-radius:var(--r);background:color-mix(in srgb,var(--accent) 8%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 32%,transparent);font-size:12.5px;display:flex;flex-direction:column;gap:8px}
+.round.claude{background:color-mix(in srgb,var(--claude) 9%,var(--panel));border-color:color-mix(in srgb,var(--claude) 36%,transparent)}
+.round b{font-weight:600}
+.round .msg{font-family:var(--mono);font-size:11.5px;background:var(--ground);border:1px solid var(--line);border-radius:6px;padding:6px 8px;overflow-wrap:anywhere;user-select:all}
+.round .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.composer{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.compose-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tc-pill{font-family:var(--mono);font-size:12px;background:var(--accent);color:var(--accent-ink);border-radius:5px;padding:3px 8px;font-weight:500;border:0;white-space:nowrap}
+.tc-pill.quiet{background:var(--raised);color:var(--muted);border:1px solid var(--line)}
+.tc-pill.whole{background:var(--text);color:var(--ground)}
+.compose-hint{color:var(--faint);font-size:12px}
+textarea.note-input{resize:vertical;min-height:56px;max-height:240px;background:var(--ground);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;line-height:1.45;width:100%;box-sizing:border-box}
+textarea.note-input:focus{border-color:var(--faint);outline:none}
+.tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tools .btn{padding:6px 10px;font-size:12px}
+.only{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.keys{display:flex;gap:10px;flex-wrap:wrap;color:var(--faint);font-size:11.5px}
+kbd{font-family:var(--mono);font-size:10.5px;background:var(--raised);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--muted)}
+.readonly{color:var(--muted);font-size:13px;margin:0}
+
+.notes-head{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tabs{display:flex;background:var(--ground);border:1px solid var(--line);border-radius:var(--r);padding:2px}
+.tab{border:0;background:transparent;border-radius:6px;padding:4px 10px;font-size:12px;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--raised);color:var(--text)}
+.tab .n{font-family:var(--mono);margin-left:4px;color:var(--faint)}
+.tab .n.hot{color:var(--accent)}
+.filter{width:auto;padding:4px 6px;font-size:12px}
+.note-list{list-style:none;margin:0;padding:6px 8px 16px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:2px}
+.sec{padding:12px 8px 4px;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+.sec .n{font-family:var(--mono);color:var(--faint);letter-spacing:0}
+.sec button{margin-left:auto;text-transform:none;letter-spacing:0}
+.note{border-radius:var(--r);padding:10px 10px 8px;border:1px solid transparent;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.note:hover{background:var(--raised)}
+.note.active{background:color-mix(in srgb,var(--accent) 7%,var(--panel));border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.note.selected{border-color:var(--faint);background:var(--raised)}
+.note.done .note-text{color:var(--muted)}
+.note.done .tc-pill,.note.addressed .tc-pill{background:var(--raised);color:var(--muted);border:1px solid var(--line)}
+.note-head{display:flex;align-items:center;gap:8px;min-width:0}
+.num{font-family:var(--mono);color:var(--faint);font-size:11px;min-width:22px;flex:none}
+.who{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+.who img,.who .ini{width:20px;height:20px;border-radius:50%;flex:none;object-fit:cover}
+.who .ini{display:grid;place-items:center;background:var(--line);font-size:10px;font-weight:600}
+.who .ini.c{background:var(--claude);color:#1d120c}
+.who .nm{font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .ago{color:var(--faint);font-size:12px;white-space:nowrap}
+.check{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--faint);background:transparent;flex:none;padding:0}
+.check svg{width:13px;height:13px;fill:none;stroke:transparent;stroke-width:2.4}
+.check:hover{border-color:var(--ok)}
+.check:hover svg{stroke:var(--ok)}
+.check[aria-pressed="true"]{background:var(--ok);border-color:var(--ok)}
+.check[aria-pressed="true"] svg{stroke:var(--ok-ink)}
+.check.sq{border-radius:6px}
+.note-text{margin:0;padding-left:30px;white-space:pre-wrap;overflow-wrap:anywhere}
+.note-meta{display:flex;align-items:center;gap:4px;padding-left:26px;flex-wrap:wrap}
+.note-meta .btn{padding:2px 6px;font-size:12px}
+.note-meta .chip{margin-left:4px}
+.replies{list-style:none;margin:2px 0 0 30px;padding:0 0 0 10px;border-left:2px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.reply.from-claude{border-left:0}
+.replies:has(.from-claude){border-left-color:color-mix(in srgb,var(--claude) 55%,transparent)}
+.reply .who .nm{font-size:12.5px}
+.reply p{margin:2px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text)}
+.reply-form{margin-left:30px;display:flex;flex-direction:column;gap:6px}
+.reply-form textarea{min-height:52px}
+.reply-form .row{display:flex;gap:6px;justify-content:flex-end}
+.empty-notes{padding:28px 18px;color:var(--muted);text-align:center}
+.empty-notes strong{display:block;color:var(--text);margin-bottom:4px}
+.card{margin:4px 8px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--ground);display:flex;flex-direction:column;gap:6px;font-size:13px}
+.card p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.card .lead{color:var(--muted);font-size:12px}
+.ticks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.ticks li{display:flex;gap:10px;align-items:flex-start}
+.ticks .t{flex:1;min-width:0;overflow-wrap:anywhere}
+.ticks li.on .t{color:var(--muted);text-decoration:line-through}
+.ticks .jump{font-family:var(--mono);font-size:11.5px;color:var(--accent);background:transparent;border:0;padding:0 2px}
+.qc{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.qc li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:baseline}
+.qc .d{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.notes-foot{padding:8px 16px;border-top:1px solid var(--line);color:var(--faint);font-size:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.banner{margin:10px 16px 0;padding:8px 12px;border-radius:var(--r);background:color-mix(in srgb,var(--danger) 14%,var(--panel));border:1px solid color-mix(in srgb,var(--danger) 40%,transparent);font-size:12.5px}
+.narrow-only{display:none}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--text);color:var(--ground);padding:8px 14px;border-radius:var(--r);font-weight:500;font-size:13px;z-index:20;max-width:calc(100% - 32px)}
+
+@media (max-width:899px){
+  html,body{height:auto}
+  .app{display:block;height:auto}
+  .library{display:none}
+  .stage-head,.transport{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .stage-head{flex-wrap:wrap}
+  .stage-title{flex-basis:100%}
+  .cut-picker{display:block;width:100%;order:9}
+  .seg.on{display:flex}
+  .player-wrap{padding:12px 16px}
+  .player-wrap.compare .frame.hide{display:none}
+  .notes{border-left:0;border-top:1px solid var(--line);padding-right:0}
+  .verbar,.composer,.notes-head,.notes-foot{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .round,.banner{margin-left:max(16px,env(safe-area-inset-left,0px));margin-right:max(16px,env(safe-area-inset-right,0px))}
+  .note-list{overflow:visible;padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+  .keys{display:none}
+  .narrow-only{display:inline-flex}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <aside class="library" aria-label="Cuts">
+    <div class="brand"><b>__PROJECT_HTML__</b><span>Cut Review</span></div>
+    <div id="cutList"></div>
+    <div class="lib-actions">
+      <button class="btn" id="addCutBtn" type="button" hidden>+ Add a cut</button>
+      <form class="upload" id="uploadForm" hidden>
+        <label>Video file (MP4 or WebM, up to 20 MB)
+          <input class="field" type="file" id="upFile" accept="video/mp4,video/webm" required>
+        </label>
+        <label>Video name
+          <input class="field" id="upGroup" list="groupNames" placeholder="Launch film" required>
+          <datalist id="groupNames"></datalist>
+        </label>
+        <div class="row">
+          <label>Cut and version
+            <input class="field" id="upLabel" placeholder="Main v1" required>
+          </label>
+          <label>Frame rate
+            <select class="field" id="upFps"><option>24</option><option>25</option><option selected>30</option><option>50</option><option>60</option></select>
+          </label>
+        </div>
+        <div class="row">
+          <button class="btn ghost" type="button" id="upCancel">Cancel</button>
+          <button class="btn primary" type="submit" id="upSubmit">Upload</button>
+        </div>
+        <div class="status" id="upStatus" role="status"></div>
+      </form>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="stage-head">
+      <div class="stage-title">
+        <div class="g" id="curGroup">Loading</div>
+        <h1 id="curLabel">Fetching cuts</h1>
+      </div>
+      <span class="chip" id="stateChip" hidden></span>
+      <div class="seg" id="abSeg" role="group" aria-label="Which version is showing"></div>
+      <button class="btn" id="compareBtn" type="button" aria-pressed="false" hidden title="Show the previous version next to this one (V)">Compare</button>
+      <button class="btn" id="fileBtn" type="button" hidden>Show file</button>
+      <select class="field cut-picker" id="cutPicker" aria-label="Choose a cut"></select>
+    </div>
+    <div class="player-wrap" id="playerWrap">
+      <div class="frame hide" id="frameB" hidden>
+        <video id="videoB" playsinline preload="auto" muted></video>
+        <span class="tag" id="tagB"></span>
+      </div>
+      <div class="frame" id="frame">
+        <video id="video" playsinline preload="auto"></video>
+        <canvas id="ink"></canvas>
+        <span class="tag" id="tagA" hidden></span>
+        <div class="pen-flag" id="penFlag" hidden>Drawing on frame</div>
+      </div>
+      <div class="stage-empty" id="stageEmpty"><p><strong>Loading cuts</strong>Fetching the videos and notes saved on this page.</p></div>
+    </div>
+    <div class="transport">
+      <div class="scrub" id="scrub" aria-label="Timeline">
+        <div class="track"><div class="buf" id="buf"></div><div class="prog" id="prog"></div><div class="sel" id="selRange" hidden></div></div>
+        <div class="lane" id="lane"></div>
+        <div class="playhead" id="playhead" style="left:0"></div>
+        <div class="hover-tip" id="hoverTip" hidden></div>
+      </div>
+      <div class="controls">
+        <button class="icon-btn play" id="playBtn" type="button" aria-label="Play"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15l12.5-7.5z"/></svg></button>
+        <button class="icon-btn" id="backBtn" type="button" aria-label="Back one frame" title="Back one frame (Left arrow)"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
+        <button class="icon-btn" id="fwdBtn" type="button" aria-label="Forward one frame" title="Forward one frame (Right arrow)"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg></button>
+        <span class="clock mono"><b id="curTime">00:00:00</b> / <span id="durTime">00:00:00</span></span>
+        <span class="spacer"></span>
+        <select class="speed" id="speed" aria-label="Playback speed"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="1.5">1.5x</option><option value="2">2x</option></select>
+        <button class="icon-btn" id="muteBtn" type="button" aria-label="Mute"><svg viewBox="0 0 24 24" id="muteIcon"><path d="M4 9v6h4l5 4V5L8 9zM16 8.5a5 5 0 0 1 0 7l-1.2-1.2a3.3 3.3 0 0 0 0-4.6zM18.4 6a8.5 8.5 0 0 1 0 12l-1.2-1.2a6.8 6.8 0 0 0 0-9.6z"/></svg></button>
+      </div>
+      <div class="b-row" id="bRow" hidden>
+        <select class="field" id="bPick" aria-label="Version to compare with"></select>
+        <div class="b-scrub" id="bScrub" aria-label="Timeline of the compared version"><div class="track"><div class="prog" id="bProg"></div></div></div>
+        <span class="clock mono"><b id="bTime">00:00:00</b></span>
+        <button class="btn small" id="bSound" type="button" aria-pressed="false" title="Hear the compared version instead of this one">Hear this one</button>
+      </div>
+    </div>
+  </main>
+
+  <section class="notes" aria-label="Notes">
+    <div class="verbar" id="verbar"></div>
+    <div id="roundSlot"></div>
+    <div class="composer" id="composer">
+      <div class="compose-top">
+        <button class="tc-pill" id="notePill" type="button" title="The note lands here. Click to jump the playhead to it.">00:00:00</button>
+        <span class="compose-hint" id="composeHint">Pause where something needs changing and type.</span>
+      </div>
+      <textarea class="note-input" id="noteText" placeholder="Leave a note at this frame…" aria-label="Note"></textarea>
+      <div class="tools">
+        <button class="btn" type="button" id="wholeBtn" aria-pressed="false" title="A note about the whole video, not one frame (W)">Whole video</button>
+        <button class="btn" type="button" id="penBtn" aria-pressed="false" title="Draw on the frame (D)">Draw</button>
+        <button class="btn ghost" type="button" id="clearInkBtn" hidden>Clear drawing</button>
+        <button class="btn" type="button" id="inBtn" title="Mark the start of a range (I)">In</button>
+        <button class="btn" type="button" id="outBtn" title="Mark the end of a range (O)">Out</button>
+        <button class="btn ghost" type="button" id="clearRangeBtn" hidden>Clear range</button>
+        <span class="spacer"></span>
+        <button class="btn primary" type="button" id="postBtn">Post note</button>
+      </div>
+      <label class="only" id="onlyWrap" hidden><input type="checkbox" id="onlyBox"> <span id="onlyText">This cut only</span></label>
+    </div>
+    <div id="bannerSlot"></div>
+    <div class="notes-head">
+      <div class="tabs" role="tablist" aria-label="What to show">
+        <button class="tab" role="tab" data-tab="notes" aria-selected="true">Notes<span class="n" id="nNotes">0</span></button>
+        <button class="tab" role="tab" data-tab="changes" aria-selected="false" id="changesTab" hidden>What changed<span class="n" id="nChanges">0</span></button>
+      </div>
+      <span class="spacer"></span>
+      <select class="field filter" id="filter" aria-label="Which notes to show">
+        <option value="open">Open</option><option value="addressed">Addressed</option><option value="done">Resolved</option><option value="all">All</option>
+      </select>
+      <button class="btn ghost small" type="button" id="copyBtn" title="Copy the open notes as a numbered edit list">Copy edit list</button>
+    </div>
+    <ol class="note-list" id="noteList"></ol>
+    <div class="notes-foot"><div class="keys"><span><kbd>Space</kbd> play</span><span><kbd>←</kbd><kbd>→</kbd> frame</span><span><kbd>Shift</kbd>+<kbd>←</kbd> 1s</span><span><kbd>C</kbd> note</span><span><kbd>W</kbd> whole video</span><span><kbd>I</kbd><kbd>O</kbd> range</span><span><kbd>D</kbd> draw</span><span><kbd>V</kbd> compare</span><span><kbd>Enter</kbd> post</span></div><span id="notesFoot"></span></div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const MAX_UPLOAD = 20 * 1024 * 1024;
+const video = $('#video'), videoB = $('#videoB'), frame = $('#frame'), frameB = $('#frameB'), ink = $('#ink'), ctx = ink.getContext('2d');
+const scrub = $('#scrub');
+const narrow = () => window.matchMedia('(max-width: 899px)').matches;
+
+const S = {
+  videos: [], comments: [], rounds: [], checks: [], currentId: null,
+  vmap: new Map(), tops: [], kids: new Map(),
+  me: { id: null, isOwner: false, canEdit: false }, canWrite: true, profiles: {},
+  tab: 'notes', filter: 'open', selectedId: null, showInkFor: null,
+  rangeIn: null, rangeOut: null, strokes: [], live: null, penOn: false, whole: false,
+  replyTo: null, editing: null, confirmDel: null, confirmCut: null, confirmApprove: false,
+  compare: false, compareId: null, showB: false, bSound: false, bJump: null,
+  openFolds: new Set(), showArchived: false, showTicked: false,
+  canSend: 'off', handoff: null,
+  dbState: 'loading'
+};
+let db = null, user = null, assets = null, comments = null;
+
+/* ---------- helpers ---------- */
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) { if (c == null || c === false) continue; el.append(c.nodeType ? c : document.createTextNode(String(c))); }
+  return el;
+}
+const cur = () => S.vmap.get(S.currentId) || null;
+const fpsOf = v => (v && v.fps) || 30;
+const fps = () => fpsOf(cur());
+const dur = () => (isFinite(video.duration) && video.duration > 0) ? video.duration : ((cur() && cur().duration) || 0);
+function tcAt(t, f) {
+  if (!isFinite(t) || t < 0) t = 0;
+  const n = Math.floor(t * f + 1e-4), fr = n % f, s = Math.floor(n / f);
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0') + ':' + String(fr).padStart(2, '0');
+}
+const tc = t => tcAt(t, fps());
+function mmss(t) { t = Math.round(t || 0); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
+function ago(iso) {
+  const d = new Date(iso); if (isNaN(d)) return '';
+  const s = (Date.now() - d) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  if (s < 604800) return Math.floor(s / 86400) + 'd ago';
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+const nowIso = () => new Date().toISOString();
+let toastTimer;
+function toast(msg, ms) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, ms || 3600); }
+function banner(msg) { const s = $('#bannerSlot'); s.replaceChildren(); if (msg) s.append(h('div', { class: 'banner', role: 'status', text: msg })); }
+function personName(id) {
+  if (id === 'claude') return 'Claude';
+  if (id === 'chat' || !id) return 'You';
+  const p = S.profiles[id]; return (p && p.name) || (id === S.me.id ? 'You' : 'Someone');
+}
+function avatar(id) {
+  if (id === 'claude') return h('span', { class: 'ini c', text: 'C' });
+  const p = S.profiles[id];
+  if (p && p.avatarUrl) return h('img', { src: p.avatarUrl, alt: '' });
+  const n = personName(id); return h('span', { class: 'ini', text: (n[0] || '?').toUpperCase() });
+}
+function writeErr(e) {
+  if (e && e.code === 'invalid_argument') { S.canWrite = false; renderComposer(); toast('This page is read-only for you, so the change was not saved.'); }
+  else if (e && e.code === 'quota_exceeded') toast('The notes store is full. Delete resolved notes to make room.');
+  else toast('Could not save. Check your connection and try again.');
+}
+function legacyCopy(text) {
+  const ta = h('textarea', { style: 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0' }); ta.value = text; document.body.append(ta); ta.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+  ta.remove(); return ok;
+}
+function copyText(text, okMsg) {
+  const fallback = () => toast(legacyCopy(text) ? okMsg : 'Copy was blocked. Select the text and copy it by hand.');
+  try { navigator.clipboard.writeText(text).then(() => toast(okMsg), fallback); } catch (e) { fallback(); }
+}
+const tick1 = () => { const b = document.createElement('span'); b.innerHTML = '<svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg>'; return b.firstChild; };
+
+/* ---------- versions: a video (group) has cuts (variants), and each cut has versions ---------- */
+function vinfo(v) {
+  if (!v) return { variant: '', version: 1 };
+  let variant = v.variant, version = v.version;
+  if (variant == null || version == null) {
+    const m = /^(.*?)[\s,_-]*\bv(\d+)\s*$/i.exec(v.label || '');
+    if (variant == null) variant = m ? (m[1].trim() || 'Main') : (v.label || 'Main');
+    if (version == null) version = m ? parseInt(m[2], 10) : 1;
+  }
+  return { variant: String(variant), version: Number(version) || 1 };
+}
+const gname = v => (v && v.group) || 'Ungrouped';
+const sameGroup = v => S.videos.filter(x => gname(x) === gname(v));
+function versionsOf(v) {
+  const k = vinfo(v).variant;
+  return sameGroup(v).filter(x => vinfo(x).variant === k).sort((a, b) => vinfo(a).version - vinfo(b).version || String(a.createdAt).localeCompare(String(b.createdAt)));
+}
+function prevOf(v) { const vs = versionsOf(v), i = vs.findIndex(x => x.id === v.id); return i > 0 ? vs[i - 1] : null; }
+function latestOf(v) { const vs = versionsOf(v); return vs[vs.length - 1]; }
+const isLatest = v => latestOf(v).id === v.id;
+const siblingNames = v => [...new Set(sameGroup(v).map(x => vinfo(x).variant))];
+const nameOf = v => v ? (v.label || 'Untitled') : '';
+
+/* ---------- note states ----------
+   open      nobody has dealt with it
+   addressed Claude replied with kind "done" or "partly" and named the version it was fixed in
+   done      the reviewer ticked it (or approved the version)                                   */
+function reindex() {
+  S.vmap = new Map(S.videos.map(v => [v.id, v]));
+  S.kids = new Map(); S.tops = [];
+  for (const c of S.comments) {
+    if (c.parentId) { if (!S.kids.has(c.parentId)) S.kids.set(c.parentId, []); S.kids.get(c.parentId).push(c); }
+    else S.tops.push(c);
+  }
+  for (const list of S.kids.values()) list.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+}
+const repliesOf = id => S.kids.get(id) || [];
+const isWhole = c => c.general === true || c.t == null;
+function fixOf(c) { const m = repliesOf(c.id).filter(r => r.author === 'claude' && (r.kind === 'done' || r.kind === 'partly') && r.addressedIn); return m.length ? m[m.length - 1] : null; }
+function triageOf(c) { const m = repliesOf(c.id).filter(r => r.author === 'claude' && r.kind && !r.addressedIn); return m.length ? m[m.length - 1] : null; }
+/* Where to look, in the cut on screen, for a change. The time Claude gave is exact in the version it
+   was made in; in a later version or a sibling cut it is scaled by length, so it is only close. */
+function fixTime(c, v) {
+  const f = fixOf(c); if (!f || f.addressedAt == null || !v) return null;
+  const fv = S.vmap.get(f.addressedIn);
+  if (!fv || fv.id === v.id) return { t: f.addressedAt, exact: true };
+  const k = (v.duration && fv.duration) ? v.duration / fv.duration : 1;
+  return { t: Math.min(f.addressedAt * k, Math.max(0, (v.duration || 0) - 0.1)), exact: false };
+}
+const stateOf = c => c.resolved ? 'done' : fixOf(c) ? 'addressed' : 'open';
+function noteSort(a, b) { return (isWhole(b) - isWhole(a)) || ((a.t || 0) - (b.t || 0)) || String(a.createdAt).localeCompare(String(b.createdAt)); }
+const topsFor = vid => S.tops.filter(c => c.videoId === vid).sort(noteSort);
+function numbersFor(vid) {
+  const m = new Map(); let w = 0, n = 0;
+  for (const c of topsFor(vid)) m.set(c.id, isWhole(c) ? 'W' + (++w) : '#' + (++n));
+  return m;
+}
+/* A note left on another cut of the same video also applies here when it is on an earlier version of
+   this cut, or on a sibling cut (unless the reviewer ticked "this cut only"). */
+function appliesTo(c, v) {
+  const cv = S.vmap.get(c.videoId); if (!cv || cv.id === v.id || gname(cv) !== gname(v)) return false;
+  const a = vinfo(cv), b = vinfo(v);
+  if (a.variant === b.variant) return a.version < b.version;
+  return !c.variantOnly && a.version <= b.version;
+}
+function earlierFor(v) {
+  return S.tops.filter(c => appliesTo(c, v)).sort((a, b) => {
+    const va = S.vmap.get(a.videoId), vb = S.vmap.get(b.videoId);
+    return (vinfo(va).version - vinfo(vb).version) || nameOf(va).localeCompare(nameOf(vb)) || noteSort(a, b);
+  });
+}
+const openOn = v => topsFor(v.id).filter(c => stateOf(c) === 'open').concat(earlierFor(v).filter(c => stateOf(c) === 'open'));
+const toTickOn = v => earlierFor(v).filter(c => stateOf(c) === 'addressed');
+function groupOpen(v) { const ids = new Set(sameGroup(v).map(x => x.id)); return S.tops.filter(c => ids.has(c.videoId) && stateOf(c) === 'open'); }
+function liveRound(v) {
+  const g = gname(v);
+  return S.rounds.filter(r => r.group === g && !['done', 'withdrawn'].includes(r.state)).sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)))[0] || null;
+}
+const checksFor = vid => S.checks.filter(k => k.videoId === vid).sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.createdAt).localeCompare(String(b.createdAt)));
+
+/* ---------- layout ---------- */
+function arOf(el, v) { return (el.videoWidth && el.videoHeight) ? el.videoWidth / el.videoHeight : (v && v.w && v.h ? v.w / v.h : 9 / 16); }
+function fitFrame() {
+  const wrap = $('#playerWrap'), cs = getComputedStyle(wrap);
+  const aw = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const ah = narrow() ? Math.min(window.innerHeight * 0.64, 760) : wrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const two = S.compare && !narrow();
+  const each = two ? (aw - 16) / 2 : aw;
+  const size = (el, ar) => {
+    let w = each, hgt = w / ar;
+    if (hgt > ah) { hgt = ah; w = hgt * ar; }
+    w = Math.max(120, Math.floor(w)); hgt = Math.max(120, Math.floor(hgt));
+    el.style.width = w + 'px'; el.style.height = hgt + 'px';
+    return [w, hgt];
+  };
+  const [w, hgt] = size(frame, arOf(video, cur()));
+  if (S.compare) size(frameB, arOf(videoB, S.vmap.get(S.compareId)));
+  const dpr = window.devicePixelRatio || 1;
+  ink.width = Math.round(w * dpr); ink.height = Math.round(hgt * dpr);
+  drawInk();
+}
+new ResizeObserver(() => fitFrame()).observe($('#playerWrap'));
+window.addEventListener('resize', fitFrame);
+
+/* ---------- ink ---------- */
+function strokePath(pts, W, H) {
+  ctx.beginPath(); ctx.moveTo(pts[0] * W, pts[1] * H);
+  if (pts.length === 2) ctx.lineTo(pts[0] * W + 0.1, pts[1] * H + 0.1);
+  for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i] * W, pts[i + 1] * H);
+}
+function drawInk() {
+  const W = ink.width, H = ink.height;
+  ctx.clearRect(0, 0, W, H);
+  let list = null;
+  if (S.strokes.length || S.live) list = S.live ? S.strokes.concat([S.live]) : S.strokes;
+  else if (S.showInkFor && video.paused) { const c = S.comments.find(x => x.id === S.showInkFor); list = c && c.videoId === S.currentId && c.strokes; }
+  if (!list || !list.length) return;
+  const lw = Math.max(3, W * 0.009);
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ffd23f';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const pts of list) {
+    if (!Array.isArray(pts) || pts.length < 2) continue;
+    strokePath(pts, W, H); ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = lw + 3; ctx.stroke();
+    strokePath(pts, W, H); ctx.strokeStyle = accent; ctx.lineWidth = lw; ctx.stroke();
+  }
+}
+function normPt(e) {
+  const r = ink.getBoundingClientRect();
+  const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+  return [Math.round(x * 10000) / 10000, Math.round(y * 10000) / 10000];
+}
+ink.addEventListener('pointerdown', e => {
+  if (!S.penOn) return;
+  e.preventDefault(); ink.setPointerCapture(e.pointerId); video.pause(); S.showInkFor = null;
+  S.live = normPt(e); drawInk();
+});
+ink.addEventListener('pointermove', e => {
+  if (!S.live) return;
+  const [x, y] = normPt(e), n = S.live.length;
+  if (Math.hypot(x - S.live[n - 2], y - S.live[n - 1]) < 0.004) return;
+  S.live.push(x, y); drawInk();
+});
+function endStroke() {
+  if (!S.live) return;
+  if (S.strokes.length < 40) S.strokes.push(S.live.slice(0, 1200));
+  S.live = null; drawInk(); renderComposer();
+}
+ink.addEventListener('pointerup', endStroke);
+ink.addEventListener('pointercancel', endStroke);
+
+/* ---------- seeking ----------
+   A paused video only paints a new frame when a seek finishes. Dragging the timeline asks for a new
+   time on every pointer move, and each request cancels the one before it, so the picture would sit
+   still until the drag stopped. Each player therefore runs one seek at a time and remembers only the
+   latest time asked for; the frame under the playhead keeps up with the drag.                        */
+function makeSeeker(el) {
+  let want = null, shown = null;
+  const go = () => { if (want == null) return; const t = want; want = null; shown = t; try { el.currentTime = t; } catch (e) { /* not ready yet */ } };
+  el.addEventListener('seeked', () => { shown = null; go(); });
+  el.addEventListener('loadedmetadata', go);
+  el.addEventListener('emptied', () => { want = null; shown = null; });
+  const seek = t => { want = t; if (!el.seeking) go(); };
+  seek.target = () => want != null ? want : (el.seeking && shown != null ? shown : el.currentTime || 0);
+  return seek;
+}
+const seekA = makeSeeker(video), seekB = makeSeeker(videoB);
+const nowT = () => seekA.target();
+
+/* ---------- player ---------- */
+function setPlayIcon() {
+  $('#playIcon').innerHTML = video.paused ? '<path d="M7 4.5v15l12.5-7.5z"/>' : '<path d="M6 4.5h4.5v15H6zM13.5 4.5H18v15h-4.5z"/>';
+  $('#playBtn').setAttribute('aria-label', video.paused ? 'Play' : 'Pause');
+}
+function togglePlay() {
+  if (!cur()) return;
+  if (video.paused) { S.penOn = false; renderComposer(); video.play().catch(() => {}); if (S.compare && videoB.src) videoB.play().catch(() => {}); }
+  else { video.pause(); videoB.pause(); }
+}
+function seek(t, keepInk) {
+  const d = dur(); seekA(Math.min(Math.max(0, t), d ? d - 0.001 : 0));
+  if (!keepInk) S.showInkFor = null;
+  tick();
+}
+function step(dir) {
+  video.pause(); videoB.pause(); const f = fps();
+  const n = Math.floor(nowT() * f + 1e-4) + dir;
+  seek((n + 0.25) / f);
+}
+function nudge(dir) { video.pause(); videoB.pause(); seek(nowT() + dir); }
+
+let lastActive = null;
+function tick() {
+  const d = dur(), t = nowT();
+  const pct = d ? Math.min(100, t / d * 100) : 0;
+  $('#prog').style.width = pct + '%';
+  $('#playhead').style.left = pct + '%';
+  $('#curTime').textContent = tc(t);
+  if (video.buffered.length && d) $('#buf').style.width = Math.min(100, video.buffered.end(video.buffered.length - 1) / d * 100) + '%';
+  updatePill();
+  if (S.compare) tickB();
+  let act = null;
+  if (S.tab === 'notes') for (const c of shownNotes()) { if (isWhole(c)) continue; const end = c.tEnd != null ? c.tEnd : c.t + 1.5; if (t >= c.t - 0.02 && t <= end) act = c.id; }
+  if (act !== lastActive) {
+    lastActive = act;
+    document.querySelectorAll('.note[data-id]').forEach(li => li.classList.toggle('active', li.dataset.id === act));
+  }
+}
+function loop() { tick(); if (!video.paused && !video.ended) requestAnimationFrame(loop); }
+video.addEventListener('play', () => { S.showInkFor = null; drawInk(); setPlayIcon(); requestAnimationFrame(loop); });
+video.addEventListener('pause', () => { setPlayIcon(); tick(); drawInk(); });
+video.addEventListener('ended', () => { setPlayIcon(); videoB.pause(); });
+video.addEventListener('seeked', () => { tick(); drawInk(); });
+video.addEventListener('timeupdate', () => { if (video.paused) tick(); });
+video.addEventListener('progress', tick);
+video.addEventListener('loadedmetadata', () => { $('#durTime').textContent = tc(dur()); fitFrame(); renderMarkers(); tick(); });
+video.addEventListener('error', () => { if (cur() && cur().assetId) showStage('This cut could not be loaded', 'The video file may have been removed. Try another cut, or upload it again.'); });
+video.addEventListener('click', togglePlay);
+videoB.addEventListener('click', togglePlay);
+$('#playBtn').addEventListener('click', togglePlay);
+$('#backBtn').addEventListener('click', () => step(-1));
+$('#fwdBtn').addEventListener('click', () => step(1));
+$('#speed').addEventListener('change', e => { video.playbackRate = videoB.playbackRate = parseFloat(e.target.value); });
+function setSound() {
+  const off = video.dataset.off === '1';
+  video.muted = off || (S.compare && S.bSound); videoB.muted = off || !(S.compare && S.bSound);
+  $('#muteIcon').innerHTML = off ? '<path d="M4 9v6h4l5 4V5L8 9zM16.3 9.1l1.4-1.4 2 2 2-2 1.4 1.4-2 2 2 2-1.4 1.4-2-2-2 2-1.4-1.4 2-2z"/>' : '<path d="M4 9v6h4l5 4V5L8 9zM16 8.5a5 5 0 0 1 0 7l-1.2-1.2a3.3 3.3 0 0 0 0-4.6zM18.4 6a8.5 8.5 0 0 1 0 12l-1.2-1.2a6.8 6.8 0 0 0 0-9.6z"/>';
+  $('#muteBtn').setAttribute('aria-label', off ? 'Unmute' : 'Mute');
+  $('#bSound').setAttribute('aria-pressed', String(S.bSound));
+  $('#bSound').textContent = S.bSound ? 'Hearing this one' : 'Hear this one';
+}
+$('#muteBtn').addEventListener('click', () => { video.dataset.off = video.dataset.off === '1' ? '' : '1'; setSound(); });
+$('#bSound').addEventListener('click', () => { S.bSound = !S.bSound; setSound(); });
+
+/* scrub bar */
+function dragBar(el, timeAt, onSeek, extra) {
+  let on = false;
+  el.addEventListener('pointerdown', e => {
+    if (e.target.closest('.mk') || !timeAt(e, true)) return;
+    on = true; try { el.setPointerCapture(e.pointerId); } catch (x) { /* fine */ }
+    onSeek(timeAt(e));
+  });
+  el.addEventListener('pointermove', e => { if (on) onSeek(timeAt(e)); if (extra) extra(e, on); });
+  const end = () => { on = false; };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  return () => on;
+}
+function scrubT(e, check) { const d = dur(); if (check) return d > 0; const r = scrub.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * d; }
+const scrubbing = dragBar(scrub, scrubT, t => { video.pause(); videoB.pause(); seek(t); }, e => {
+  const tip = $('#hoverTip'); if (!dur()) return;
+  const mk = e.target.closest('.mk'), r = scrub.getBoundingClientRect();
+  tip.style.left = Math.min(r.width - 40, Math.max(40, e.clientX - r.left)) + 'px';
+  if (mk) { const c = S.comments.find(x => x.id === mk.dataset.id); tip.textContent = c ? mk.dataset.tip + '  ' + (c.text || 'Drawing') : ''; }
+  else tip.textContent = tc(scrubT(e));
+  tip.hidden = false;
+});
+scrub.addEventListener('pointerleave', () => { if (!scrubbing()) $('#hoverTip').hidden = true; });
+
+/* ---------- compare: the previous version beside this one, linked through the notes ---------- */
+const durB = () => (isFinite(videoB.duration) && videoB.duration > 0) ? videoB.duration : ((S.vmap.get(S.compareId) || {}).duration || 0);
+function tickB() {
+  const d = durB(), t = seekB.target();
+  $('#bProg').style.width = (d ? Math.min(100, t / d * 100) : 0) + '%';
+  $('#bTime').textContent = tcAt(t, fpsOf(S.vmap.get(S.compareId)));
+}
+function bScrubT(e, check) { const d = durB(); if (check) return d > 0; const r = $('#bScrub').getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * d; }
+dragBar($('#bScrub'), bScrubT, t => { video.pause(); videoB.pause(); seekB(Math.min(t, Math.max(0, durB() - 0.001))); tickB(); });
+videoB.addEventListener('timeupdate', tickB);
+videoB.addEventListener('seeked', tickB);
+videoB.addEventListener('loadedmetadata', () => { fitFrame(); if (S.bJump != null) { seekB(S.bJump); S.bJump = null; } tickB(); });
+function compareChoices() { const v = cur(); return v ? sameGroup(v).filter(x => x.id !== v.id && x.assetId).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) : []; }
+function loadB(id, at) {
+  const v = S.vmap.get(id); if (!v) return;
+  if (S.compareId !== id || !videoB.getAttribute('src')) { S.compareId = id; S.bJump = at != null ? at : null; videoB.src = '/_blob/' + v.assetId; videoB.playbackRate = parseFloat($('#speed').value); }
+  else if (at != null) seekB(Math.min(at, Math.max(0, durB() - 0.001)));
+  renderCompare();
+}
+function setCompare(on, id, at) {
+  const v = cur(); if (!v) return;
+  const choices = compareChoices();
+  if (on && !choices.length) { toast('There is no other version of this video to compare with yet.'); return; }
+  S.compare = on;
+  if (on) { const p = prevOf(v); loadB(id || (S.compareId && choices.some(x => x.id === S.compareId) ? S.compareId : (p || choices[0]).id), at); }
+  else { videoB.pause(); S.showB = false; S.bSound = false; }
+  renderCompare(); setSound(); fitFrame();
+}
+function renderCompare() {
+  const v = cur(), b = S.vmap.get(S.compareId), choices = compareChoices();
+  $('#compareBtn').hidden = !v || !choices.length;
+  $('#compareBtn').setAttribute('aria-pressed', String(S.compare));
+  $('#playerWrap').classList.toggle('compare', S.compare);
+  frameB.hidden = !S.compare; $('#bRow').hidden = !S.compare;
+  $('#tagA').hidden = !S.compare; $('#tagA').textContent = nameOf(v); $('#tagB').textContent = nameOf(b);
+  frameB.classList.toggle('hide', !S.showB); frame.classList.toggle('hide', S.compare && S.showB);
+  const seg = $('#abSeg'); seg.classList.toggle('on', S.compare); seg.replaceChildren();
+  if (S.compare) seg.append(
+    h('button', { type: 'button', 'aria-pressed': String(S.showB), text: nameOf(b), onclick: () => { S.showB = true; renderCompare(); fitFrame(); } }),
+    h('button', { type: 'button', 'aria-pressed': String(!S.showB), text: nameOf(v), onclick: () => { S.showB = false; renderCompare(); fitFrame(); } }));
+  const pick = $('#bPick'); pick.replaceChildren(...choices.map(x => h('option', { value: x.id, selected: x.id === S.compareId || null, text: nameOf(x) })));
+}
+$('#compareBtn').addEventListener('click', () => setCompare(!S.compare));
+$('#bPick').addEventListener('change', e => loadB(e.target.value));
+
+/* ---------- writes: notes ---------- */
+function selectNote(id, scrollList) {
+  const c = S.comments.find(x => x.id === id); if (!c) return;
+  S.selectedId = id; video.pause(); videoB.pause();
+  if (c.videoId === S.currentId && !isWhole(c)) { seek(c.t, true); S.showInkFor = c.strokes && c.strokes.length ? id : null; }
+  drawInk(); renderMarkers();
+  document.querySelectorAll('.note[data-id]').forEach(li => li.classList.toggle('selected', li.dataset.id === id));
+  if (scrollList) { const li = document.querySelector('.note[data-id="' + CSS.escape(id) + '"]'); if (li) li.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+}
+/* From the What changed tab: show where an earlier note was dealt with in this version, and, with
+   Compare on, the frame it was left on in the old one. */
+function jumpToFix(c) {
+  const ft = fixTime(c, cur()), old = S.vmap.get(c.videoId);
+  S.selectedId = c.id; video.pause(); videoB.pause();
+  if (ft) seek(ft.t);
+  if (S.compare && old && old.id !== S.currentId) loadB(old.id, isWhole(c) ? null : c.t);
+  renderMarkers();
+  document.querySelectorAll('.note[data-id]').forEach(li => li.classList.toggle('selected', li.dataset.id === c.id));
+}
+async function toggleResolve(c) {
+  if (!db) return;
+  try { await db.doc('comments/' + c.id).update({ resolved: !c.resolved, resolvedBy: c.resolved ? null : S.me.id, resolvedAt: c.resolved ? null : nowIso(), resolvedVia: null }); }
+  catch (e) { writeErr(e); }
+}
+async function deleteNote(c) {
+  if (!db) return;
+  try {
+    for (const r of repliesOf(c.id)) await db.doc('comments/' + r.id).delete();
+    await db.doc('comments/' + c.id).delete();
+    if (S.selectedId === c.id) { S.selectedId = null; S.showInkFor = null; drawInk(); }
+  } catch (e) { writeErr(e); }
+}
+const isMine = c => !!S.me.id && c.author === S.me.id;
+const canDelete = c => S.canWrite && (isMine(c) || S.me.isOwner || S.me.canEdit);
+const canEditText = c => S.canWrite && (isMine(c) || (c.via === 'chat' && S.me.isOwner));
+
+/* ---------- render: one note ---------- */
+function kindChip(r) {
+  const fixed = r.addressedIn && S.vmap.get(r.addressedIn);
+  if (r.kind === 'done') return h('span', { class: 'chip claude', text: fixed ? 'Done in ' + nameOf(fixed) : 'Done' });
+  if (r.kind === 'partly') return h('span', { class: 'chip warn', text: fixed ? 'Partly done in ' + nameOf(fixed) : 'Can only do part' });
+  if (r.kind === 'cannot') return h('span', { class: 'chip bad', text: 'Cannot do' });
+  if (r.kind === 'plan') return h('span', { class: 'chip accent', text: 'Plan, needs your go' });
+  if (r.kind === 'can') return h('span', { class: 'chip', text: 'Will do' });
+  return null;
+}
+function noteItem(c, num, opts) {
+  opts = opts || {};
+  const reps = repliesOf(c.id), st = stateOf(c), home = S.vmap.get(c.videoId), here = c.videoId === S.currentId;
+  const li = h('li', {
+    class: 'note ' + st + (c.id === S.selectedId ? ' selected' : '') + (c.id === lastActive ? ' active' : ''),
+    'data-id': c.id,
+    onclick: e => { if (e.target.closest('button,textarea,a,input')) return; opts.earlier ? jumpToFix(c) : selectNote(c.id); }
+  });
+  const check = h('button', { class: 'check', type: 'button', 'aria-pressed': String(!!c.resolved), 'aria-label': c.resolved ? 'Reopen note' : 'Mark as resolved', title: c.resolved ? 'Reopen' : 'Resolve', disabled: !S.canWrite || null, onclick: () => toggleResolve(c) }, tick1());
+  const f = home ? fpsOf(home) : fps();
+  const when = isWhole(c) ? 'Whole video' : (c.tEnd != null ? tcAt(c.t, f) + ' → ' + tcAt(c.tEnd, f) : tcAt(c.t, f));
+  li.append(h('div', { class: 'note-head' },
+    h('span', { class: 'num', text: num || '' }),
+    h('button', { class: 'tc-pill' + (isWhole(c) ? ' whole' : ''), type: 'button', title: here ? 'Jump to this frame' : 'Where this note was left', onclick: () => opts.earlier ? jumpToFix(c) : selectNote(c.id), text: when }),
+    h('span', { class: 'who' }, avatar(c.author === 'chat' ? S.me.id : c.author), h('span', { class: 'nm', text: personName(c.author) }), h('span', { class: 'ago', text: ago(c.createdAt) })),
+    check
+  ));
+  if (S.editing === c.id) {
+    const ta = h('textarea', { class: 'note-input', id: 'editText', 'aria-label': 'Edit note' }); ta.value = S.editDraft != null ? S.editDraft : (c.text || '');
+    const save = async () => {
+      const text = ta.value.trim(); if (!text && !(c.strokes && c.strokes.length)) { toast('A note needs some text.'); return; }
+      try { await db.doc('comments/' + c.id).update({ text, editedAt: nowIso() }); S.editing = null; renderNotes(); } catch (e) { writeErr(e); }
+    };
+    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } if (e.key === 'Escape') { S.editing = null; renderNotes(); } });
+    li.append(h('div', { class: 'reply-form' }, ta, h('div', { class: 'row' },
+      h('button', { class: 'btn ghost', type: 'button', text: 'Cancel', onclick: () => { S.editing = null; renderNotes(); } }),
+      h('button', { class: 'btn primary', type: 'button', text: 'Save', onclick: save }))));
+    requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
+  } else if (c.text) li.append(h('p', { class: 'note-text', text: c.text }));
+
+  const meta = h('div', { class: 'note-meta' });
+  if (opts.earlier && home) meta.append(h('span', { class: 'chip', text: 'Left on ' + nameOf(home) }));
+  if (c.via === 'chat') meta.append(h('span', { class: 'chip', text: 'Said in chat' }));
+  if (c.variantOnly && home) meta.append(h('span', { class: 'chip', text: vinfo(home).variant + ' only' }));
+  if (c.editedAt) meta.append(h('span', { class: 'chip', text: 'Edited' }));
+  if (c.strokes && c.strokes.length) meta.append(h('span', { class: 'chip accent', text: 'Drawing' }));
+  const ft = opts.earlier ? fixTime(c, cur()) : null;
+  if (ft) meta.append(h('button', { class: 'btn small', type: 'button', title: ft.exact ? 'Jump to where this was changed' : 'The change was made in an earlier version, so this time is approximate', text: (ft.exact ? 'See it at ' : 'See it around ') + tc(ft.t), onclick: () => jumpToFix(c) }));
+  if (S.canWrite) meta.append(h('button', { class: 'btn ghost', type: 'button', text: 'Reply', onclick: () => { S.replyTo = S.replyTo === c.id ? null : c.id; renderNotes(); const t = document.getElementById('replyText'); if (t) t.focus(); } }));
+  if (canEditText(c) && S.editing !== c.id) meta.append(h('button', { class: 'btn ghost', type: 'button', text: 'Edit', onclick: () => { S.editing = c.id; const e0 = document.getElementById('editText'); if (e0) e0.removeAttribute('id'); renderNotes(); } }));
+  if (canDelete(c)) {
+    if (S.confirmDel === c.id) {
+      meta.append(h('button', { class: 'btn ghost danger', type: 'button', text: 'Delete note' + (reps.length ? ' and replies' : ''), onclick: () => { S.confirmDel = null; deleteNote(c); } }),
+        h('button', { class: 'btn ghost', type: 'button', text: 'Keep', onclick: () => { S.confirmDel = null; renderNotes(); } }));
+    } else meta.append(h('button', { class: 'btn ghost', type: 'button', text: 'Delete', onclick: () => { S.confirmDel = c.id; renderNotes(); } }));
+  }
+  if (meta.childNodes.length) li.append(meta);
+
+  if (reps.length) {
+    const ol = h('ol', { class: 'replies' });
+    for (const r of reps) {
+      ol.append(h('li', { class: 'reply' + (r.author === 'claude' ? ' from-claude' : '') },
+        h('div', { class: 'who' }, avatar(r.author), h('span', { class: 'nm', text: personName(r.author) }), r.author === 'claude' && r.kind ? kindChip(r) : null, h('span', { class: 'ago', text: ago(r.createdAt) }),
+          canDelete(r) ? h('button', { class: 'btn ghost', type: 'button', style: 'padding:0 6px;font-size:11.5px', text: S.confirmDel === r.id ? 'Confirm delete' : 'Delete', onclick: () => { if (S.confirmDel === r.id) { S.confirmDel = null; deleteNote(r); } else { S.confirmDel = r.id; renderNotes(); } } }) : null),
+        h('p', { text: r.text })));
+    }
+    li.append(ol);
+  }
+  if (S.replyTo === c.id && S.canWrite) {
+    const ta = h('textarea', { class: 'note-input', id: 'replyText', placeholder: 'Reply…', 'aria-label': 'Reply' });
+    ta.value = opts.draft || '';
+    let sending = false;
+    const send = async () => {
+      const text = ta.value.trim(); if (!text || !db || sending) return;
+      sending = true;
+      try {
+        await db.collection('comments').add({ videoId: c.videoId, t: c.t == null ? null : c.t, tEnd: null, parentId: c.id, text, author: S.me.id, createdAt: nowIso(), resolved: false, strokes: null });
+        S.replyTo = null; renderNotes();
+      } catch (e) { writeErr(e); } finally { sending = false; }
+    };
+    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } if (e.key === 'Escape') { S.replyTo = null; renderNotes(); } });
+    li.append(h('div', { class: 'reply-form' }, ta, h('div', { class: 'row' },
+      h('button', { class: 'btn ghost', type: 'button', text: 'Cancel', onclick: () => { S.replyTo = null; renderNotes(); } }),
+      h('button', { class: 'btn primary', type: 'button', text: 'Reply', onclick: send }))));
+    if (opts.focus) requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
+  }
+  return li;
+}
+
+/* ---------- render: the notes column ---------- */
+function shownNotes() {
+  const all = topsFor(S.currentId);
+  return S.filter === 'all' ? all : all.filter(c => stateOf(c) === S.filter);
+}
+function hasChanges(v) { return !!v && (earlierFor(v).length > 0 || checksFor(v.id).length > 0 || !!v.summary || !!(v.qc && v.qc.items && v.qc.items.length)); }
+function renderNotes() {
+  const list = $('#noteList'), v = cur();
+  const draftEl = document.getElementById('replyText');
+  const draft = draftEl ? draftEl.value : '', hadFocus = draftEl && document.activeElement === draftEl;
+  const editEl = document.getElementById('editText'); S.editDraft = editEl ? editEl.value : null;
+  const all = v ? topsFor(v.id) : [];
+  const nOpen = all.filter(c => stateOf(c) === 'open').length;
+  const showChanges = hasChanges(v);
+  if (!showChanges && S.tab === 'changes') S.tab = 'notes';
+  const pending = v ? toTickOn(v).length + checksFor(v.id).filter(k => !k.done).length : 0;
+  $('#changesTab').hidden = !showChanges;
+  $('#nNotes').textContent = nOpen; $('#nNotes').classList.toggle('hot', nOpen > 0);
+  $('#nChanges').textContent = pending; $('#nChanges').classList.toggle('hot', pending > 0);
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
+  $('#filter').hidden = S.tab !== 'notes'; $('#filter').value = S.filter;
+  list.replaceChildren();
+  if (!v) { list.append(h('li', { class: 'empty-notes' }, h('strong', { text: 'No cut selected' }), 'Pick a cut to see its notes.')); renderShell(); return; }
+  if (S.tab === 'changes') renderChanges(list, v, draft, hadFocus);
+  else {
+    const numbers = numbersFor(v.id), shown = shownNotes();
+    if (!shown.length) {
+      const msg = !all.length ? ['No notes on this version yet', 'Pause where something needs to change and type a note. Use Whole video for a note about all of it.']
+        : S.filter === 'open' ? ['Nothing open on this version', 'Every note here has been dealt with or ticked off.']
+        : S.filter === 'addressed' ? ['Nothing waiting for your tick', 'Notes Claude has dealt with show here until you tick them.']
+        : ['Nothing resolved yet', 'Tick a note once you are happy with the change and it moves here.'];
+      list.append(h('li', { class: 'empty-notes' }, h('strong', { text: msg[0] }), msg[1]));
+    }
+    const whole = shown.filter(isWhole), timed = shown.filter(c => !isWhole(c));
+    if (whole.length) { list.append(h('li', { class: 'sec' }, 'Whole video', h('span', { class: 'n', text: whole.length }))); for (const c of whole) list.append(noteItem(c, numbers.get(c.id), { draft, focus: hadFocus })); }
+    if (whole.length && timed.length) list.append(h('li', { class: 'sec' }, 'At a frame', h('span', { class: 'n', text: timed.length })));
+    for (const c of timed) list.append(noteItem(c, numbers.get(c.id), { draft, focus: hadFocus }));
+  }
+  renderShell();
+}
+function renderChanges(list, v, draft, hadFocus) {
+  const p = prevOf(v), earlier = earlierFor(v), checks = checksFor(v.id);
+  const lead = h('li', { class: 'card' });
+  lead.append(h('p', { class: 'lead', text: p ? nameOf(v) + ', compared with ' + nameOf(p) : nameOf(v) }));
+  if (v.summary) lead.append(h('p', { text: v.summary }));
+  if (compareChoices().length) lead.append(h('div', {}, h('button', { class: 'btn small', type: 'button', text: S.compare ? 'Close compare' : 'Compare side by side', onclick: () => setCompare(!S.compare) })));
+  list.append(lead);
+
+  if (checks.length) {
+    const left = checks.filter(k => !k.done).length;
+    list.append(h('li', { class: 'sec' }, 'Check by ear', h('span', { class: 'n', text: left ? left + ' left' : 'all done' })));
+    const ul = h('ul', { class: 'ticks' });
+    for (const k of checks) {
+      const box = h('button', { class: 'check sq', type: 'button', 'aria-pressed': String(!!k.done), 'aria-label': k.done ? 'Untick' : 'Tick as checked', disabled: !S.canWrite || null,
+        onclick: async () => { try { await db.doc('checks/' + k.id).update({ done: !k.done, doneAt: k.done ? null : nowIso(), doneBy: k.done ? null : S.me.id }); } catch (e) { writeErr(e); } } }, tick1());
+      ul.append(h('li', { class: k.done ? 'on' : '' }, box, h('span', { class: 't' }, k.text, ' ', k.t != null ? h('button', { class: 'jump', type: 'button', text: tc(k.t), title: 'Jump to this moment', onclick: () => { video.pause(); seek(k.t); } }) : null)));
+    }
+    list.append(h('li', { class: 'card' }, h('p', { class: 'lead', text: 'Claude cannot hear. These are the things only your ears can confirm.' }), ul));
+  }
+  if (v.qc && v.qc.items && v.qc.items.length) {
+    const look = v.qc.items.filter(i => i.state === 'look').length;
+    list.append(h('li', { class: 'sec' }, "Claude's checks", h('span', { class: 'n', text: look ? look + ' to look at' : 'all passed' })));
+    const ul = h('ul', { class: 'qc' });
+    for (const i of v.qc.items) ul.append(h('li', {}, h('span', { class: 'chip ' + (i.state === 'ok' ? 'ok' : i.state === 'look' ? 'warn' : ''), text: i.state === 'ok' ? 'Passed' : i.state === 'look' ? 'Look' : 'Not run' }), h('span', {}, h('div', { text: i.name }), i.detail ? h('div', { class: 'd', text: i.detail }) : null)));
+    list.append(h('li', { class: 'card' }, ul));
+  }
+  const nums = new Map(); for (const id of new Set(earlier.map(c => c.videoId))) for (const [k, n] of numbersFor(id)) nums.set(k, n);
+  const addressed = earlier.filter(c => stateOf(c) === 'addressed'), open = earlier.filter(c => stateOf(c) === 'open'), done = earlier.filter(c => stateOf(c) === 'done');
+  if (addressed.length) {
+    list.append(h('li', { class: 'sec' }, 'Changed, waiting for your tick', h('span', { class: 'n', text: addressed.length })));
+    for (const c of addressed) list.append(noteItem(c, nums.get(c.id), { earlier: true, draft, focus: hadFocus }));
+  }
+  if (open.length) {
+    list.append(h('li', { class: 'sec' }, 'Still open from other cuts', h('span', { class: 'n', text: open.length })));
+    for (const c of open) list.append(noteItem(c, nums.get(c.id), { earlier: true, draft, focus: hadFocus }));
+  }
+  if (done.length) {
+    list.append(h('li', { class: 'sec' }, 'Ticked', h('span', { class: 'n', text: done.length }), h('button', { class: 'btn ghost small', type: 'button', text: S.showTicked ? 'Hide' : 'Show', onclick: () => { S.showTicked = !S.showTicked; renderNotes(); } })));
+    if (S.showTicked) for (const c of done) list.append(noteItem(c, nums.get(c.id), { earlier: true, draft, focus: hadFocus }));
+  }
+  if (!earlier.length && !checks.length && !v.summary) list.append(h('li', { class: 'empty-notes' }, h('strong', { text: 'Nothing carried over' }), 'There are no earlier notes for this cut.'));
+}
+function renderShell() { renderMarkers(); renderLibrary(); renderVerbar(); renderRound(); renderFoot(); renderCompare(); }
+
+function renderMarkers() {
+  const lane = $('#lane'); lane.replaceChildren();
+  const d = dur(), v = cur(); if (!d || !v) return;
+  const put = (c, t, tEnd, cls, tip) => {
+    const b = h('button', { class: 'mk ' + cls + (tEnd != null ? ' range' : '') + (c.id === S.selectedId ? ' sel' : ''), type: 'button', 'data-id': c.id, 'data-tip': tip, 'aria-label': 'Note at ' + tc(t), onclick: () => { cls === 'fix' ? jumpToFix(c) : selectNote(c.id, true); } });
+    b.style.left = Math.min(100, t / d * 100) + '%';
+    if (tEnd != null) b.style.width = Math.max(0.8, (tEnd - t) / d * 100) + '%';
+    lane.append(b);
+  };
+  if (S.tab === 'changes') {
+    for (const c of earlierFor(v)) { const ft = fixTime(c, v); if (ft && !c.resolved) put(c, ft.t, null, 'fix', tc(ft.t) + '  changed for:'); }
+  } else for (const c of shownNotes()) { if (!isWhole(c)) put(c, c.t, c.tEnd, stateOf(c), tc(c.t) + '  ' + personName(c.author) + ':'); }
+  const sel = $('#selRange');
+  if (S.rangeIn != null && !S.whole) {
+    const a = S.rangeIn / d * 100, b2 = (S.rangeOut != null ? S.rangeOut : S.rangeIn) / d * 100;
+    sel.style.left = a + '%'; sel.style.width = Math.max(0.4, b2 - a) + '%'; sel.hidden = false;
+  } else sel.hidden = true;
+}
+
+/* ---------- render: version bar, submit, approve ---------- */
+function handoffText(kind, v, n) {
+  const what = gname(v) === 'Ungrouped' ? nameOf(v) : gname(v) + ', ' + nameOf(v);
+  return kind === 'plan' ? 'Go ahead with the plan on ' + what + '.' : 'Apply my notes on ' + what + ' (' + n + (n === 1 ? ' note' : ' notes') + ', submitted on the review page).';
+}
+/* Hand a request to Claude. If a Claude session is watching this page, the request reaches it as a
+   comment sent to Claude. Otherwise the line is copied for the reviewer to paste into their chat. */
+async function handoff(text, el) {
+  S.handoff = { text, sent: false };
+  if (comments) {
+    try {
+      if (await comments.canSendToClaude() === 'available') {
+        await comments.sendToClaude({ anchor: await comments.anchorFor(el), text });
+        S.handoff.sent = true; toast('Sent to Claude.'); renderRound(); return;
+      }
+    } catch (e) { /* fall through to the clipboard */ }
+  }
+  copyText(text, 'Saved. The request is copied: paste it to Claude to start.');
+  renderRound();
+}
+/* The full-quality file lives on the reviewer's computer, and a page cannot open a folder there.
+   So the button copies the file's path and, when a Claude session is watching, asks it to show
+   the file in the file manager. The path is `file` on the cut's row. */
+const UA = navigator.userAgent || '', PHONE = /iPhone|iPad|Android/.test(UA);
+const FILES = /Mac/.test(UA) ? 'Finder' : /Windows/.test(UA) ? 'Explorer' : '';
+let fileAsked = null;
+async function showFile(e) {
+  const v = cur(); if (!v || !v.file) return;
+  if (fileAsked === v.id) { toast('Already asked. It opens when Claude is free.'); return; }
+  const el = e.currentTarget, where = FILES || 'the file manager';
+  /* Copy inside the click itself: the old-style copy first, because it cannot be refused later. */
+  let copied = legacyCopy(v.file), sent = false; el.focus();
+  const cp = copied ? Promise.resolve() : (async () => { try { await navigator.clipboard.writeText(v.file); copied = true; } catch (err) {} })();
+  if (comments) {
+    try {
+      if (await comments.canSendToClaude() === 'available') {
+        const what = gname(v) === 'Ungrouped' ? nameOf(v) : gname(v) + ', ' + nameOf(v);
+        await comments.sendToClaude({ anchor: await comments.anchorFor(el), text: 'Show the file for ' + what + ' in ' + where + ' (cut ' + v.id + ').' });
+        sent = true; fileAsked = v.id; setTimeout(() => { fileAsked = null; }, 20000);   /* one request per click, not one per impatient click */
+      }
+    } catch (err) { /* the copied path still works */ }
+  }
+  await cp;
+  if (sent) toast('Asked Claude to open it in ' + where + '. It opens when Claude is free, which can take a minute.' + (copied ? ' The path is copied if you want it sooner.' : ''), 9000);
+  else if (!copied) toast('Copy was blocked. The file is at ' + v.file, 12000);
+  else toast('Path copied. ' + (FILES === 'Finder' ? 'In Finder press Cmd+Shift+G, paste, then Return.' : FILES === 'Explorer' ? 'Paste it into the File Explorer address bar.' : 'Paste it into your file manager.'), 9000);
+}
+$('#fileBtn').textContent = FILES ? 'Show in ' + FILES : 'Show file';
+$('#fileBtn').addEventListener('click', showFile);
+let busy = false;
+async function submitNotes(e) {
+  const v = cur(); if (!v || !db || busy) return;
+  const open = groupOpen(v); if (!open.length) { toast('There are no open notes to submit.'); return; }
+  busy = true; const el = e.currentTarget;
+  try {
+    const live = liveRound(v), ids = open.map(c => c.id);
+    if (live) await db.doc('rounds/' + live.id).update({ noteIds: ids, count: ids.length, state: 'submitted', submittedAt: nowIso(), videoId: v.id });
+    else await db.collection('rounds').add({ group: gname(v), videoId: v.id, noteIds: ids, count: ids.length, state: 'submitted', submittedAt: nowIso(), submittedBy: S.me.id });
+    await handoff(handoffText('notes', v, ids.length), el);
+  } catch (err) { writeErr(err); } finally { busy = false; }
+}
+async function approvePlan(r, e) {
+  const v = cur(); if (!v || busy) return; busy = true; const el = e.currentTarget;
+  try { await db.doc('rounds/' + r.id).update({ state: 'approved', approvedAt: nowIso(), approvedBy: S.me.id }); await handoff(handoffText('plan', v), el); }
+  catch (err) { writeErr(err); } finally { busy = false; }
+}
+async function approveVersion(v) {
+  if (busy) return; busy = true; S.confirmApprove = false;
+  try {
+    await db.doc('videos/' + v.id).update({ status: 'approved', approvedAt: nowIso(), approvedBy: S.me.id });
+    const mine = topsFor(v.id).concat(earlierFor(v)).filter(c => stateOf(c) === 'addressed');
+    await Promise.all(mine.map(c => db.doc('comments/' + c.id).update({ resolved: true, resolvedBy: S.me.id, resolvedAt: nowIso(), resolvedVia: 'approve:' + v.id })));
+    toast(nameOf(v) + ' approved' + (mine.length ? ', ' + mine.length + ' notes ticked' : '') + '.');
+  } catch (e) { writeErr(e); } finally { busy = false; }
+}
+async function unapprove(v) {
+  if (busy) return; busy = true;
+  try {
+    await db.doc('videos/' + v.id).update({ status: 'review', approvedAt: null, approvedBy: null });
+    await Promise.all(S.tops.filter(c => c.resolvedVia === 'approve:' + v.id).map(c => db.doc('comments/' + c.id).update({ resolved: false, resolvedBy: null, resolvedAt: null, resolvedVia: null })));
+    toast('Approval undone.');
+  } catch (e) { writeErr(e); } finally { busy = false; }
+}
+function renderVerbar() {
+  const bar = $('#verbar'), v = cur(); bar.replaceChildren();
+  const chip = $('#stateChip'), fb = $('#fileBtn');
+  fb.hidden = !(v && v.file) || PHONE; fb.title = v && v.file ? 'Full-quality file: ' + v.file : '';
+  if (!v) { chip.hidden = true; bar.hidden = true; return; }
+  bar.hidden = false;
+  const approved = v.status === 'approved', open = groupOpen(v), live = liveRound(v);
+  const fresh = live ? open.filter(c => !(live.noteIds || []).includes(c.id)).length : open.length;
+  chip.hidden = false;
+  chip.className = 'chip ' + (approved ? 'solid-ok' : live ? 'accent' : !isLatest(v) ? '' : 'accent');
+  chip.textContent = approved ? 'Approved' : !isLatest(v) ? 'Earlier version' : live ? ({ submitted: 'Notes submitted', plan: 'Plan ready', approved: 'Plan approved', working: 'Claude is editing' }[live.state] || 'Notes submitted') : 'In review';
+  if (S.confirmApprove) {
+    bar.append(h('span', { class: 'what' }, h('b', { text: 'Approve ' + nameOf(v) + ' as final?' }), ' Notes Claude has dealt with get ticked. You can undo this.'),
+      h('button', { class: 'btn ghost small', type: 'button', text: 'Cancel', onclick: () => { S.confirmApprove = false; renderVerbar(); } }),
+      h('button', { class: 'btn good', type: 'button', text: 'Approve', onclick: () => approveVersion(v) }));
+    return;
+  }
+  const what = h('span', { class: 'what' });
+  if (approved) what.append(h('b', { text: 'Final. ' }), 'Approved ' + ago(v.approvedAt) + '.');
+  else if (open.length) what.append(h('b', { text: open.length + (open.length === 1 ? ' open note' : ' open notes') }), siblingNames(v).length > 1 || versionsOf(v).length > 1 ? ' across this video.' : '.');
+  else what.append('No open notes.');
+  bar.append(what);
+  if (!S.canWrite) return;
+  if (approved) { bar.append(h('button', { class: 'btn ghost small', type: 'button', text: 'Undo approval', onclick: () => unapprove(v) })); return; }
+  const canSubmit = open.length > 0 && (!live || fresh > 0 || live.state === 'submitted');
+  bar.append(h('button', { class: 'btn primary', type: 'button', disabled: !canSubmit || null, title: 'Tell Claude these notes are ready to be applied',
+    text: live && fresh ? 'Submit ' + fresh + ' more' : live && live.state === 'submitted' ? 'Submit again' : 'Submit notes' + (open.length ? ' (' + open.length + ')' : ''), onclick: submitNotes }));
+  bar.append(h('button', { class: 'btn', type: 'button', title: 'Mark this version as the final one', text: 'Approve', onclick: () => { S.confirmApprove = true; renderVerbar(); } }));
+}
+function renderRound() {
+  const slot = $('#roundSlot'), v = cur(); slot.replaceChildren();
+  if (!v) return;
+  const r = liveRound(v); if (!r) { S.handoff = null; return; }
+  const box = h('div', { class: 'round' + (r.state === 'plan' || r.state === 'working' ? ' claude' : ''), role: 'status' });
+  const msg = text => { box.append(h('div', { class: 'msg', text }), h('div', { class: 'row' }, h('button', { class: 'btn small', type: 'button', text: 'Copy', onclick: () => copyText(text, 'Copied.') }), S.canWrite && r.state === 'submitted' ? h('button', { class: 'btn ghost small', type: 'button', text: 'Take back', onclick: async () => { try { await db.doc('rounds/' + r.id).update({ state: 'withdrawn' }); } catch (e) { writeErr(e); } } }) : null)); };
+  if (r.state === 'submitted') {
+    box.append(h('div', {}, h('b', { text: r.count + (r.count === 1 ? ' note' : ' notes') + ' submitted ' + ago(r.submittedAt) + '. ' }), S.handoff && S.handoff.sent ? 'Claude has been told and will reply here.' : 'Paste this line to Claude to start, if you have not already:'));
+    if (!(S.handoff && S.handoff.sent)) msg(handoffText('notes', v, r.count));
+  } else if (r.state === 'plan') {
+    const n = (r.noteIds || []).filter(id => { const c = S.comments.find(x => x.id === id); const t = c && triageOf(c); return t && t.kind === 'plan'; }).length;
+    box.append(h('div', {}, h('b', { text: "Claude's plan is ready. " }), (n ? n + (n === 1 ? ' note needs' : ' notes need') + ' your go: read the replies marked Plan' : 'Read the replies under your notes') + ', reply to change anything, then approve.' + (r.planNote ? ' ' + r.planNote : '')));
+    if (S.canWrite) box.append(h('div', { class: 'row' }, h('button', { class: 'btn primary', type: 'button', text: 'Approve plan', onclick: e => approvePlan(r, e) })));
+  } else if (r.state === 'approved') {
+    box.append(h('div', {}, h('b', { text: 'Plan approved ' + ago(r.approvedAt) + '. ' }), S.handoff && S.handoff.sent ? 'Claude has been told.' : 'Paste this line to Claude to start the edit:'));
+    if (!(S.handoff && S.handoff.sent)) msg(handoffText('plan', v));
+  } else if (r.state === 'working') {
+    box.append(h('div', {}, h('b', { text: 'Claude is making the next version. ' }), 'It appears in the list when it is ready.'));
+  } else return;
+  slot.append(box);
+}
+function renderFoot() {
+  const foot = $('#notesFoot'), v = cur(); foot.replaceChildren();
+  foot.append(h('span', { class: 'narrow-only', text: 'Notes save as you post. Submit them when you are done.' }));
+  if (v && S.me.canEdit) foot.append(h('button', { class: 'btn ghost small narrow-only', type: 'button', text: v.archived ? 'Bring this video back' : 'Archive this video', onclick: () => setArchived(v, !v.archived) }));
+}
+
+/* ---------- render: library ---------- */
+function groupsOf() {
+  const map = new Map();
+  for (const v of [...S.videos].sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))) { const g = gname(v); if (!map.has(g)) map.set(g, []); map.get(g).push(v); }
+  return map;
+}
+const isArchived = vids => vids.length > 0 && vids.every(v => v.archived);
+async function setArchived(v, on) {
+  try { for (const x of sameGroup(v)) if (!!x.archived !== on) await db.doc('videos/' + x.id).update({ archived: on }); toast(on ? 'Archived. Nothing was deleted.' : 'Back in the list.'); }
+  catch (e) { writeErr(e); }
+}
+function cutRow(v, old) {
+  const out = old ? topsFor(v.id).filter(c => stateOf(c) === 'open').length : openOn(v).length, wait = old ? 0 : toTickOn(v).length;
+  const meta = mmss(v.duration) + (wait ? ' · ' + wait + ' to tick' : '');
+  return h('button', { class: 'cut' + (old ? ' old' : ''), type: 'button', 'aria-current': String(v.id === S.currentId), onclick: () => go(v.id) },
+    h('span', {}, h('div', { class: 'cut-name', text: nameOf(v) }), h('div', { class: 'cut-meta', text: meta })),
+    h('span', { class: 'cut-side' }, v.status === 'approved' ? h('span', { class: 'chip solid-ok', text: 'Approved' }) : null,
+      h('span', { class: 'count' + (out ? ' has' : ''), title: out + ' open notes', text: out })));
+}
+function renderLibrary() {
+  const box = $('#cutList'); box.replaceChildren();
+  const picker = $('#cutPicker'); picker.replaceChildren();
+  const groups = groupsOf(), v0 = cur();
+  $('#groupNames').replaceChildren(...[...groups.keys()].map(g => h('option', { value: g })));
+  if (!S.videos.length) {
+    box.append(h('p', { class: 'cut-meta', text: S.dbState === 'loading' ? 'Loading cuts…' : 'No cuts yet.' }));
+    picker.append(h('option', { text: 'No cuts yet' }));
+  }
+  const live = [...groups].filter(([, vids]) => !isArchived(vids)), gone = [...groups].filter(([, vids]) => isArchived(vids));
+  const drawGroup = ([g, vids], archived) => {
+    const grp = h('div', { class: 'group' });
+    grp.append(h('div', { class: 'group-head' }, h('h3', { text: g }),
+      S.me.canEdit ? h('button', { class: 'btn ghost small', type: 'button', title: archived ? 'Bring this video back into the list' : 'Hide this video from the list. Nothing is deleted.', text: archived ? 'Restore' : 'Archive', onclick: () => setArchived(vids[0], !archived) }) : null));
+    const og = h('optgroup', { label: g + (archived ? ' (archived)' : '') });
+    const variants = [...new Set(vids.map(x => vinfo(x).variant))];
+    for (const name of variants) {
+      const vs = versionsOf(vids.find(x => vinfo(x).variant === name)), latest = vs[vs.length - 1], older = vs.slice(0, -1).reverse();
+      const key = g + '\u0000' + name, open = S.openFolds.has(key) || older.some(x => x.id === S.currentId);
+      grp.append(cutRow(latest, false));
+      if (older.length) {
+        grp.append(h('button', { class: 'btn ghost small fold', type: 'button', 'aria-expanded': String(open), text: (open ? 'Hide ' : 'Show ') + older.length + (older.length === 1 ? ' earlier version' : ' earlier versions'), onclick: () => { S.openFolds.has(key) ? S.openFolds.delete(key) : S.openFolds.add(key); renderLibrary(); } }));
+        if (open) for (const x of older) grp.append(cutRow(x, true));
+      }
+      for (const x of [...vs].reverse()) og.append(h('option', { value: x.id, selected: x.id === S.currentId || null, text: nameOf(x) + (x.id === latest.id ? (x.status === 'approved' ? ' (approved)' : ' (latest)') : '') }));
+    }
+    if (v0 && gname(v0) === g && S.me.canEdit) {
+      if (S.confirmCut === v0.id) {
+        grp.append(h('div', { class: 'tools' },
+          h('button', { class: 'btn ghost danger small', type: 'button', text: 'Delete ' + nameOf(v0) + ' and its notes', onclick: () => deleteCut(v0) }),
+          h('button', { class: 'btn ghost small', type: 'button', text: 'Keep', onclick: () => { S.confirmCut = null; renderLibrary(); } })));
+      } else grp.append(h('button', { class: 'btn ghost small', type: 'button', style: 'align-self:flex-start', text: 'Delete this version', onclick: () => { S.confirmCut = v0.id; renderLibrary(); } }));
+    }
+    box.append(grp); picker.append(og);
+  };
+  for (const g of live) drawGroup(g, false);
+  if (gone.length) {
+    box.append(h('button', { class: 'btn ghost small', type: 'button', style: 'align-self:flex-start', 'aria-expanded': String(S.showArchived), text: (S.showArchived ? 'Hide archived (' : 'Archived (') + gone.length + ')', onclick: () => { S.showArchived = !S.showArchived; renderLibrary(); } }));
+    for (const g of gone) if (S.showArchived || (v0 && gname(v0) === g[0])) drawGroup(g, true);
+  }
+  $('#curGroup').textContent = v0 ? (v0.group || '') : (S.dbState === 'loading' ? 'Loading' : 'Cut Review');
+  $('#curLabel').textContent = v0 ? nameOf(v0) : (S.dbState === 'loading' ? 'Fetching cuts' : 'No cut selected');
+}
+$('#cutPicker').addEventListener('change', e => go(e.target.value));
+async function deleteCut(v) {
+  S.confirmCut = null;
+  try {
+    for (const c of S.comments.filter(c => c.videoId === v.id)) await db.doc('comments/' + c.id).delete();
+    for (const k of S.checks.filter(k => k.videoId === v.id)) await db.doc('checks/' + k.id).delete();
+    await db.doc('videos/' + v.id).delete();
+    if (assets && v.assetId) { try { await assets.delete(v.assetId); } catch (e) { /* file stays; the row is gone */ } }
+    toast('Version deleted');
+  } catch (e) { writeErr(e); }
+}
+
+/* ---------- navigation ---------- */
+function showStage(title, body) {
+  const s = $('#stageEmpty'); s.hidden = !title;
+  if (title) s.replaceChildren(h('p', {}, h('strong', { text: title }), body || ''));
+}
+function go(id) { if (location.hash.slice(1) !== id) location.hash = id; else load(id); }
+function load(id) {
+  if (id === S.currentId && video.getAttribute('src')) return;
+  const v = S.vmap.get(id); if (!v) return;
+  S.currentId = id; S.selectedId = null; S.showInkFor = null; S.rangeIn = S.rangeOut = null; S.strokes = []; S.live = null; S.whole = false;
+  S.replyTo = null; S.editing = null; S.confirmCut = null; S.confirmApprove = false; S.handoff = null; lastActive = null;
+  videoB.pause(); S.compare = false; S.compareId = null; S.showB = false; S.bSound = false; videoB.removeAttribute('src'); videoB.load();
+  S.tab = (toTickOn(v).length || checksFor(v.id).some(k => !k.done)) ? 'changes' : 'notes';
+  S.filter = 'open';
+  if (v.assetId) { showStage(null); video.src = '/_blob/' + v.assetId; }
+  else { video.removeAttribute('src'); video.load(); showStage('Review copy removed', 'This version was replaced by a later one and its video was removed to save space. Its notes are still here.'); }
+  video.playbackRate = parseFloat($('#speed').value);
+  $('#durTime').textContent = tc(v.duration || 0);
+  setSound(); fitFrame(); renderNotes(); renderComposer(); tick();
+}
+function ensureCurrent() {
+  if (!S.videos.length) {
+    S.currentId = null; video.removeAttribute('src'); video.load();
+    showStage(S.dbState === 'loading' ? 'Loading cuts' : 'No cuts yet', S.me.canEdit && assets ? 'Add a cut from the library on the left to start reviewing.' : 'Cuts appear here once the owner adds them.');
+    renderNotes(); return;
+  }
+  const want = location.hash.slice(1);
+  if (want && S.vmap.has(want)) return load(want);
+  if (S.currentId && S.vmap.has(S.currentId)) return;
+  const pool = S.videos.filter(v => !v.archived);
+  if (!pool.length) {   // everything is archived: open clean, not on an old video
+    S.currentId = null; video.removeAttribute('src'); video.load();
+    showStage('Nothing in review', 'Every video here is archived. Open Archived in the list to bring one back, or add a new cut.');
+    return;
+  }
+  go([...pool].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0].id);
+}
+window.addEventListener('hashchange', () => { const id = location.hash.slice(1); if (S.vmap.has(id)) load(id); });
+
+/* ---------- composer ---------- */
+function updatePill() {
+  const p = $('#notePill');
+  p.classList.toggle('whole', S.whole);
+  if (S.whole) p.textContent = 'Whole video';
+  else if (S.rangeIn != null) p.textContent = tc(S.rangeIn) + ' → ' + (S.rangeOut != null ? tc(S.rangeOut) : '…');
+  else p.textContent = tc(nowT());
+}
+function renderComposer() {
+  const box = $('#composer'), v = cur();
+  const ro = !S.canWrite || !db;
+  box.querySelectorAll('textarea,button,input').forEach(el => { if (el.id !== 'notePill') el.disabled = ro || !v; });
+  let msg = box.querySelector('.readonly');
+  if (ro) {
+    if (!msg) { msg = h('p', { class: 'readonly' }); box.prepend(msg); }
+    msg.textContent = !db ? 'Sign in to claude.ai to leave notes on this page.' : 'You can watch and read notes, but not add your own.';
+  } else if (msg) msg.remove();
+  $('#wholeBtn').setAttribute('aria-pressed', String(S.whole));
+  for (const id of ['penBtn', 'inBtn', 'outBtn']) $('#' + id).hidden = S.whole;
+  $('#penBtn').setAttribute('aria-pressed', String(S.penOn));
+  frame.classList.toggle('pen', S.penOn);
+  $('#penFlag').hidden = !S.penOn;
+  $('#clearInkBtn').hidden = S.whole || !S.strokes.length;
+  $('#clearRangeBtn').hidden = S.whole || S.rangeIn == null;
+  const sibs = v ? siblingNames(v) : [];
+  $('#onlyWrap').hidden = sibs.length < 2;
+  if (v && sibs.length > 1) $('#onlyText').textContent = 'Only for ' + vinfo(v).variant + ' (not ' + sibs.filter(s => s !== vinfo(v).variant).join(', ') + ')';
+  $('#noteText').placeholder = S.whole ? 'A note about the whole video…' : 'Leave a note at this frame…';
+  $('#composeHint').textContent = S.whole ? 'This note is about the whole video, not one moment.' : S.penOn ? 'Draw on the frame, then type what to change.' : S.rangeIn != null ? (S.rangeOut == null ? 'Move to the end of the range and press Out.' : 'This note covers the marked range.') : 'Pause where something needs changing and type.';
+  updatePill(); renderMarkers();
+}
+function toggleWhole() { if (!S.canWrite || !cur()) return; S.whole = !S.whole; if (S.whole) { S.penOn = false; } renderComposer(); drawInk(); if (S.whole) $('#noteText').focus(); }
+function togglePen() { if (!S.canWrite || !cur() || S.whole) return; S.penOn = !S.penOn; if (S.penOn) { video.pause(); S.showInkFor = null; if (S.compare && S.showB) { S.showB = false; renderCompare(); fitFrame(); } } renderComposer(); drawInk(); }
+function setIn() { if (!cur() || S.whole) return; video.pause(); S.rangeIn = nowT(); if (S.rangeOut != null && S.rangeOut <= S.rangeIn) S.rangeOut = null; renderComposer(); }
+function setOut() {
+  if (!cur() || S.whole) return; video.pause();
+  if (S.rangeIn == null || nowT() <= S.rangeIn) { toast('Set an in point first (I), then move forward and press Out.'); return; }
+  S.rangeOut = nowT(); renderComposer();
+}
+function clearRange() { S.rangeIn = S.rangeOut = null; renderComposer(); }
+let posting = false;
+async function post() {
+  const ta = $('#noteText'), text = ta.value.trim(), v = cur();
+  if (!v || !db || !S.canWrite || posting) return;   // `posting` stops Enter and the button, or a double Enter, saving the note twice
+  const strokes = S.whole ? [] : S.strokes;
+  if (!text && !strokes.length) { ta.focus(); toast(S.whole ? 'Type the note first.' : 'Type a note or draw on the frame first.'); return; }
+  const t = S.whole ? null : (S.rangeIn != null ? S.rangeIn : nowT());
+  const tEnd = !S.whole && S.rangeIn != null && S.rangeOut != null && S.rangeOut > S.rangeIn ? S.rangeOut : null;
+  const r3 = x => x == null ? null : Math.round(x * 1000) / 1000;
+  const doc = { videoId: v.id, t: r3(t), tEnd: r3(tEnd), general: S.whole, variantOnly: !$('#onlyWrap').hidden && $('#onlyBox').checked, parentId: null, text, author: S.me.id, createdAt: nowIso(), resolved: false, strokes: strokes.length ? strokes : null };
+  posting = true; $('#postBtn').disabled = true;
+  try {
+    await db.collection('comments').add(doc);
+    ta.value = ''; S.strokes = []; S.penOn = false; S.rangeIn = S.rangeOut = null; S.whole = false; $('#onlyBox').checked = false;
+    S.tab = 'notes'; if (S.filter !== 'all') S.filter = 'open';
+    drawInk(); renderComposer(); renderNotes(); toast(t == null ? 'Whole-video note posted' : 'Note posted at ' + tc(t));
+  } catch (e) { writeErr(e); }
+  finally { posting = false; $('#postBtn').disabled = !S.canWrite; }
+}
+function focusComposer() { if (!S.canWrite) return; video.pause(); $('#noteText').focus(); }
+$('#noteText').addEventListener('focus', () => { video.pause(); videoB.pause(); });
+$('#noteText').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!e.repeat) post(); } });
+$('#postBtn').addEventListener('click', post);
+$('#wholeBtn').addEventListener('click', toggleWhole);
+$('#penBtn').addEventListener('click', togglePen);
+$('#clearInkBtn').addEventListener('click', () => { S.strokes = []; drawInk(); renderComposer(); });
+$('#inBtn').addEventListener('click', setIn);
+$('#outBtn').addEventListener('click', setOut);
+$('#clearRangeBtn').addEventListener('click', clearRange);
+$('#notePill').addEventListener('click', () => { if (S.rangeIn != null && !S.whole) seek(S.rangeIn); });
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => { S.tab = b.dataset.tab; renderNotes(); tick(); }));
+$('#filter').addEventListener('change', e => { S.filter = e.target.value; renderNotes(); tick(); });
+
+/* copy edit list: every open note that applies to the cut on screen, as plain text for a chat or an email */
+$('#copyBtn').addEventListener('click', () => {
+  const v = cur(); if (!v) return;
+  const own = topsFor(v.id).filter(c => stateOf(c) === 'open'), other = earlierFor(v).filter(c => stateOf(c) === 'open');
+  const lines = [(v.group ? v.group + ', ' : '') + nameOf(v), 'Open notes (' + (own.length + other.length) + ')', ''];
+  const line = (c, n, where) => {
+    const f = fpsOf(S.vmap.get(c.videoId));
+    lines.push(n + '  ' + (isWhole(c) ? 'Whole video' : c.tEnd != null ? tcAt(c.t, f) + ' to ' + tcAt(c.tEnd, f) : tcAt(c.t, f)) + (where ? ' on ' + where : '') + '  ' + (c.text || '(drawing only)') + (c.strokes && c.strokes.length ? ' [drawing on frame]' : '') + '  (' + personName(c.author) + ')');
+    for (const r of repliesOf(c.id)) lines.push('      reply from ' + personName(r.author) + ': ' + r.text);
+  };
+  const nums = numbersFor(v.id); for (const c of own) line(c, nums.get(c.id));
+  for (const c of other) line(c, numbersFor(c.videoId).get(c.id), nameOf(S.vmap.get(c.videoId)));
+  copyText(lines.join('\n'), 'Edit list copied (' + (own.length + other.length) + ' notes)');
+});
+
+/* keyboard */
+document.addEventListener('keydown', e => {
+  const t = e.target, typing = t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.isContentEditable;
+  if (typing) { if (e.key === 'Escape') t.blur(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === ' ' && t.tagName === 'BUTTON') return;
+  switch (e.key) {
+    case ' ': case 'k': case 'K': e.preventDefault(); togglePlay(); break;
+    case 'ArrowLeft': e.preventDefault(); e.shiftKey ? nudge(-1) : step(-1); break;
+    case 'ArrowRight': e.preventDefault(); e.shiftKey ? nudge(1) : step(1); break;
+    case 'c': case 'C': e.preventDefault(); focusComposer(); break;
+    case 'w': case 'W': e.preventDefault(); toggleWhole(); break;
+    case 'v': case 'V': setCompare(!S.compare); break;
+    case 'i': case 'I': setIn(); break;
+    case 'o': case 'O': setOut(); break;
+    case 'x': case 'X': clearRange(); break;
+    case 'd': case 'D': togglePen(); break;
+    case 'Escape': if (S.penOn) togglePen(); else { S.selectedId = null; S.showInkFor = null; drawInk(); renderNotes(); } break;
+  }
+});
+
+/* ---------- upload ---------- */
+function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'cut'; }
+function probe(file) {
+  return new Promise(res => {
+    const v = document.createElement('video'), url = URL.createObjectURL(file);
+    const done = r => { URL.revokeObjectURL(url); res(r); };
+    v.preload = 'metadata'; v.muted = true;
+    v.onloadedmetadata = () => done({ duration: v.duration, w: v.videoWidth, h: v.videoHeight });
+    v.onerror = () => done(null);
+    setTimeout(() => done(null), 10000);
+    v.src = url;
+  });
+}
+$('#addCutBtn').addEventListener('click', () => { $('#uploadForm').hidden = false; $('#addCutBtn').hidden = true; const v = cur(); if (v && !$('#upGroup').value) $('#upGroup').value = v.group || ''; });
+$('#upCancel').addEventListener('click', () => { $('#uploadForm').hidden = true; $('#addCutBtn').hidden = false; $('#upStatus').textContent = ''; });
+$('#uploadForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const st = $('#upStatus'); st.className = 'status';
+  const file = $('#upFile').files[0], group = $('#upGroup').value.trim(), label = $('#upLabel').value.trim(), f = parseInt($('#upFps').value, 10);
+  if (!file || !group || !label) return;
+  const type = file.type === 'video/webm' ? 'video/webm' : (file.type === 'video/mp4' || /\.mp4$/i.test(file.name) ? 'video/mp4' : '');
+  if (!type) { st.className = 'status err'; st.textContent = 'Use an MP4 or WebM file. Export a .mov as MP4 (H.264) first.'; return; }
+  if (file.size > MAX_UPLOAD) { st.className = 'status err'; st.textContent = 'This file is ' + (file.size / 1048576).toFixed(1) + ' MB and the limit is 20 MB. Export a review copy at 720p, about 1 Mbps, or ask Claude to compress it.'; return; }
+  $('#upSubmit').disabled = true; st.textContent = 'Reading the file…';
+  const meta = await probe(file);
+  st.textContent = 'Uploading ' + (file.size / 1048576).toFixed(1) + ' MB…';
+  try {
+    const res = await assets.upload(file, { type });
+    const id = slug(group + '-' + label) + '-' + Math.random().toString(36).slice(2, 6);
+    const info = vinfo({ label });
+    await db.doc('videos/' + id).set({ group, label, variant: info.variant, version: info.version, status: 'review', assetId: res.id, duration: meta ? Math.round(meta.duration * 1000) / 1000 : 0, w: meta ? meta.w : 720, h: meta ? meta.h : 1280, fps: f, createdAt: nowIso(), createdBy: S.me.id });
+    st.textContent = 'Uploaded.'; $('#uploadForm').reset(); $('#uploadForm').hidden = true; $('#addCutBtn').hidden = false;
+    go(id);
+  } catch (err) {
+    st.className = 'status err';
+    st.textContent = err && err.code === 'too_large' ? 'Over the 20 MB limit. Export a smaller review copy.'
+      : err && err.code === 'unsupported_type' ? 'That format is not accepted. Use MP4 (H.264) or WebM.'
+      : err && err.code === 'quota_or_state' ? 'Storage for this page is full. Remove an old version first.'
+      : err && err.code === 'invalid_argument' ? 'You do not have permission to add cuts here.'
+      : 'Upload failed. Try again in a moment.';
+  } finally { $('#upSubmit').disabled = false; }
+});
+
+/* ---------- boot ---------- */
+async function boot() {
+  setPlayIcon(); fitFrame(); renderComposer(); renderNotes();
+  const use = n => (window.claude && window.claude.use) ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
+  [db, user, assets, comments] = await Promise.all([use('db'), use('user'), use('assets'), use('comments')]);
+  if (user) {
+    const me = await user.me();
+    S.me = { id: me.id, isOwner: me.isOwner, canEdit: me.canEdit };
+    const cw = await user.can('data.write');
+    S.canWrite = cw !== false && !!me.id;
+  }
+  if (assets) $('#addCutBtn').hidden = false;
+  if (!db) {
+    S.dbState = 'none'; S.canWrite = false;
+    showStage('Sign in to see the cuts', 'This review page keeps its videos and notes in claude.ai. Open it while signed in.');
+    renderComposer(); renderNotes(); return;
+  }
+  renderComposer();
+  let confirmed = false;
+  const timer = setTimeout(() => { if (!confirmed) banner('Cannot reach the saved cuts and notes yet. The page keeps trying; check your connection.'); }, 10000);
+  const rows = snap => snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+  db.collection('videos').onSnapshot(snap => {
+    S.videos = rows(snap); reindex();
+    if (!snap.metadata.fromCache) { confirmed = true; clearTimeout(timer); banner(null); S.dbState = 'ready'; }
+    ensureCurrent(); renderNotes(); renderComposer(); refreshProfiles();
+  }, () => { clearTimeout(timer); S.dbState = 'error'; banner('The saved cuts could not be loaded. Reload the page to try again.'); renderLibrary(); });
+  let firstNotes = true;
+  db.collection('comments').onSnapshot(snap => {
+    S.comments = rows(snap); reindex();
+    if (S.selectedId && !S.comments.some(c => c.id === S.selectedId)) { S.selectedId = null; S.showInkFor = null; drawInk(); }
+    if (firstNotes && !snap.metadata.fromCache) { firstNotes = false; const v = cur(); if (v && toTickOn(v).length) S.tab = 'changes'; }
+    renderNotes(); tick(); refreshProfiles();
+  }, () => { banner('Notes could not be loaded. Reload the page to try again.'); });
+  db.collection('rounds').onSnapshot(snap => { S.rounds = rows(snap); renderVerbar(); renderRound(); }, () => {});
+  let firstChecks = true;
+  db.collection('checks').onSnapshot(snap => {
+    S.checks = rows(snap);
+    if (firstChecks && !snap.metadata.fromCache) { firstChecks = false; const v = cur(); if (v && checksFor(v.id).some(k => !k.done)) S.tab = 'changes'; }
+    renderNotes();
+  }, () => {});
+}
+let profileKey = '';
+async function refreshProfiles() {
+  if (!user) return;
+  const ids = [...new Set(S.comments.map(c => c.author).concat(S.videos.map(v => v.createdBy)).filter(x => x && x !== 'claude' && x !== 'chat'))];
+  if (!ids.length) return;
+  S.profiles = await user.profiles(ids);
+  const key = ids.map(i => i + ':' + ((S.profiles[i] && S.profiles[i].name) || '')).join('|');
+  if (key !== profileKey) { profileKey = key; renderNotes(); }
+}
+boot();
+})();
+</script>
